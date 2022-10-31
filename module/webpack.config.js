@@ -7,9 +7,14 @@ const CopyWebpackPlugin = require("copy-webpack-plugin");
 const pjson = require("./package.json");
 var outputPath = path.resolve(
   __dirname,
-  "/Users/pontusmolin/Library/Application Support/Noodl/projects/fb6e060e-fb24-4825-89ec-f5f73a90e858/noodl_modules/" +
+  "/Users/pontusmolin/Library/Application Support/Noodl/projects/d3f4ecdc-4db4-4f88-836e-ab533e54ac2a/noodl_modules/" +
     pjson.name
 );
+// var outputPath = path.resolve(
+//   __dirname,
+//   "/Users/pontusmolin/Library/Application Support/Noodl/projects/fb6e060e-fb24-4825-89ec-f5f73a90e858/noodl_modules/" +
+//     pjson.name
+// );
 
 function stripStartDirectories(targetPath, numDirs) {
   const p = targetPath.split("/");
