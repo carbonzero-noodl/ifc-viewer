@@ -7,7 +7,7 @@ const CopyWebpackPlugin = require("copy-webpack-plugin");
 const pjson = require("./package.json");
 var outputPath = path.resolve(
   __dirname,
-  "/Users/pontus/Library/Application Support/Noodl/projects/d3f4ecdc-4db4-4f88-836e-ab533e54ac2a/noodl_modules/" +
+  "/Users/mikaeltellhed/Library/Application Support/Noodl/projects/dfc954fb-20c7-4bd5-9a98-1e9d186cbaed/noodl_modules/" +
     pjson.name
 );
 
