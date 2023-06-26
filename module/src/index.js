@@ -4,6 +4,7 @@ const THREE = require("three");
 const {
   VertexNormalsHelper,
 } = require("three/examples/jsm/helpers/VertexNormalsHelper");
+const { GLTFExporter } = require("three/examples/jsm/exporters/GLTFExporter");
 const { IfcViewerAPI } = require("web-ifc-viewer");
 const { IfcAPI, IFCROOF } = require("web-ifc/web-ifc-api");
 
@@ -78,8 +79,11 @@ const IFCThree = (props) => {
       // const model = await viewer.IFC.loadIfcUrl(url, true);
       const model = await viewer.IFC.loadIfc(file, true);
       // viewer.shadowDropper.renderShadow(model.modelID);
+      const spatialTree = await createSpatialTree(viewer, model.modelID);
 
       const scene = viewer.IFC.context.getScene();
+
+      // await exportGLB(scene);
 
       ifcAPI.CreateIfcGuidToExpressIdMapping(model.modelID);
 
@@ -299,4 +303,197 @@ async function getAllMeshesOfType(viewer, modelID, type) {
 
   viewer.IFC.loader.ifcManager.removeSubset(modelID, undefined, customID);
   return meshes;
+}
+
+async function createSpatialTree(viewer, modelId) {
+  const tree = await viewer.IFC.getSpatialStructure(modelId, true);
+
+  const data = {
+    BuildingStoreys: [
+      //   {
+      //     "IfcIdentifyer" : "2HvGUicPH7KfI$5g45jSek_31",
+      //     "name" : "Undefined",
+      //     "filename" : "K-40-V1test kopy.ifc",
+      //     "elevation" : 0
+      //  }
+    ],
+    Elements: [
+      //   {
+      //     "IfcIdentifyer" : "1ZYQmf0000C34sDZavDZan",
+      //     "filename" : "K-40-V1test kopy.ifc",
+      //     "isParent" : "no",
+      //     "floors" : [ "2HvGUicPH7KfI$5g45jSek_31" ],
+      //     "locator_x" : 20317.51,
+      //     "locator_y" : 84369.992,
+      //     "locator_z" : 21479.994,
+      //     "name" : "BALK",
+      //     "IfcObjectType" : "IfcBeamType",
+      //     "IfcObjectTypeName" : "IPE180",
+      //     "IfcObject" : "IfcBeam",
+      //     "parent_IfcIdentifyer" : "1ZYQmf0000CJ4sDZavDZan",
+      //     "parent_IfcObject" : "IfcElementAssembly",
+      //     "material" : "STEEL/S355J2, STEEL/S355J2",
+      //     "tyrexData" : [
+      //        {
+      //           "name" : "Volume",
+      //           "value" : 13472417.61,
+      //           "unit" : "cubic millimeter"
+      //        },
+      //        {
+      //           "name" : "Length",
+      //           "value" : 5512.6,
+      //           "unit" : "millimeter"
+      //        },
+      //        {
+      //           "name" : "Height",
+      //           "value" : 180.01,
+      //           "unit" : "millimeter"
+      //        },
+      //        {
+      //           "name" : "Thickness of material",
+      //           "value" : 5.3,
+      //           "unit" : "millimeter"
+      //        }
+      //     ],
+      //     "propertySet" : [
+      //        {
+      //           "name" : "Pset_BeamCommon",
+      //           "property" : [
+      //              {
+      //                 "name" : "LoadBearing",
+      //                 "type" : "IfcPropertySingleValue",
+      //                 "value" : "Yes",
+      //                 "unit" : "IfcBoolean"
+      //              },
+      //              {
+      //                 "name" : "Reference",
+      //                 "type" : "IfcPropertySingleValue",
+      //                 "value" : "PR/1078",
+      //                 "unit" : "IfcIdentifier"
+      //              }
+      //           ]
+      //        },
+      //        {
+      //           "name" : "Tekla Quantity",
+      //           "property" : [
+      //              {
+      //                 "name" : "Area per tons",
+      //                 "type" : "IfcPropertySingleValue",
+      //                 "value" : "37.2",
+      //                 "unit" : "IfcAreaMeasure"
+      //              },
+      //              {
+      //                 "name" : "Gross footprint area",
+      //                 "type" : "IfcPropertySingleValue",
+      //                 "value" : "0.5",
+      //                 "unit" : "IfcAreaMeasure"
+      //              },
+      //              {
+      //                 "name" : "Height",
+      //                 "type" : "IfcPropertySingleValue",
+      //                 "value" : "180",
+      //                 "unit" : "IfcLengthMeasure"
+      //              },
+      //              {
+      //                 "name" : "Length",
+      //                 "type" : "IfcPropertySingleValue",
+      //                 "value" : "5625.1",
+      //                 "unit" : "IfcLengthMeasure"
+      //              },
+      //              {
+      //                 "name" : "Net surface area",
+      //                 "type" : "IfcPropertySingleValue",
+      //                 "value" : "4",
+      //                 "unit" : "IfcAreaMeasure"
+      //              },
+      //              {
+      //                 "name" : "Volume",
+      //                 "type" : "IfcPropertySingleValue",
+      //                 "value" : "0",
+      //                 "unit" : "IfcVolumeMeasure"
+      //              },
+      //              {
+      //                 "name" : "Weight",
+      //                 "type" : "IfcPropertySingleValue",
+      //                 "value" : "105.5",
+      //                 "unit" : "IfcMassMeasure"
+      //              },
+      //              {
+      //                 "name" : "Width",
+      //                 "type" : "IfcPropertySingleValue",
+      //                 "value" : "91",
+      //                 "unit" : "IfcLengthMeasure"
+      //              }
+      //           ]
+      //        }
+      //     ]
+      //  },
+    ],
+  };
+
+  debugger;
+
+  parseEntry(tree, data);
+
+  // return makeSpatialBranch() ?
+}
+
+async function parseEntry(entry, data) {
+  switch (entry.type) {
+    case "IFCPROJECT":
+    case "IFCSITE":
+    case "IFCBUILDING":
+      // nothing to do with these for now
+      break;
+    case "IFCBUILDINGSTOREY":
+      data.BuildingStoreys.push({
+        IfcIdentifyer: entry.GlobalId?.value,
+        name: entry.Name?.value, // or LongName
+        // filename: "K-40-V1test kopy.ifc",
+        elevation: entry.Elevation?.value,
+      });
+      break;
+    default:
+      // Assuming Element
+      data.Elements.push({
+        IfcIdentifyer: entry.GlobalId?.value,
+        name: entry.Name?.value, // or LongName
+      });
+      break;
+  }
+
+  if (entry.children?.length) {
+    entry.children.forEach((child) => {
+      parseEntry(child, data);
+    });
+  }
+}
+
+async function exportGLB(scene) {
+  try {
+    debugger;
+    // TODO: make sure GUIDs are included
+    const glb = await parseToGLB(scene);
+    const link = document.createElement("a");
+    document.body.appendChild(link);
+    link.download = `test.glb`;
+    link.href = URL.createObjectURL(new Blob([glb]));
+    link.click();
+  } catch (e) {
+    console.log(e);
+  }
+}
+
+async function parseToGLB(scene) {
+  const exporter = new GLTFExporter();
+  return new Promise((resolve, reject) => {
+    exporter.parse(
+      scene,
+      (file) => resolve(file),
+      (e) => reject(e),
+      {
+        binary: true,
+      }
+    );
+  });
 }
