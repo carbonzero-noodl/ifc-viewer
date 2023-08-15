@@ -1,3 +1,4 @@
+
 const Noodl = require("@noodl/noodl-sdk");
 const { useRef, useEffect, useState } = require("react");
 const THREE = require("three");
@@ -12,12 +13,14 @@ const { grahamScan } = require("flo-graham-scan");
 // For "takstol" and probably more,
 // show vertices and let user pick relevant ones?
 
+const _viewers = {};
+
 const IFCThree = (props) => {
   const containerRef = useRef();
   const viewerRef = useRef();
   const apiRef = useRef();
 
-  const [showFilePicker, setShowFilePicker] = useState(true);
+  const [showFilePicker, setShowFilePicker] = useState(false);
 
   useEffect(() => {
     const viewer = new IfcViewerAPI({
@@ -26,9 +29,9 @@ const IFCThree = (props) => {
     });
     viewerRef.current = viewer;
 
-    const ifcAPI = new IfcAPI();
+   /* const ifcAPI = new IfcAPI();
     apiRef.current = ifcAPI;
-    ifcAPI.Init();
+    ifcAPI.Init();*/
 
     // https://ifcjs.github.io/info/docs/Guide/web-ifc-three/api/#applywebifcconfig
     // async, but do we need to await?
@@ -40,14 +43,34 @@ const IFCThree = (props) => {
     // viewer.grid.setGrid();
     // viewer.clipper.active = true;
 
+    _viewers[props.name || 'Main'] = viewer;
+
+
+
     const onMouseMove = () => viewer.IFC.selector.prePickIfcItem();
     const onClick = async () => {
       const result = await viewer.IFC.selector.pickIfcItem(false);
       if (!result) return;
       const { modelID, id } = result;
       // viewer.IFC.selector.highlightIfcItem(true);
-      const props = await viewer.IFC.getProperties(modelID, id, true, false);
-      console.log(props);
+      const properties = await viewer.IFC.getProperties(modelID, id, true, false);
+    //  const testStruck = await viewer.IFC.getSpatialStructure(modelID, id, true, false);
+      //console.log("testStruck",testStruck);
+      //console.log(props);
+      
+
+      console.log(properties);
+      props.selectedGlobalId(properties.GlobalId.value);
+      props.selectedItemId(id);
+      //console.log("hhaa",hhaa);
+
+      //this.setOutputs({selectedObj:hhaa})
+      
+
+
+
+
+     // console.log("this? ",this);
     };
     const onKeyDown = (event) => {
       if (event.code === "KeyC") {
@@ -71,26 +94,60 @@ const IFCThree = (props) => {
     const file = event.target.files[0];
     if (file) {
       const viewer = viewerRef.current;
-      const ifcAPI = apiRef.current;
+      //const ifcAPI = apiRef.current;
       setShowFilePicker(false);
 
       // const url = URL.createObjectURL(file);
       // const model = await viewer.IFC.loadIfcUrl(url, true);
+      console.log("Loading IFC..");
+      viewer.IFC.loader.ifcManager.setOnProgress((event) => {
+        const percentage = Math.floor((event.loaded * 100) / event.total);
+        console.log(`Loaded ${percentage}%`);
+        props.loadProgress(percentage);
+      });
+
       const model = await viewer.IFC.loadIfc(file, true);
-      // viewer.shadowDropper.renderShadow(model.modelID);
+      viewer._activeModelID = model.modelID;
 
-      const scene = viewer.IFC.context.getScene();
-
+      const ifcAPI = viewer.IFC.loader.ifcManager.ifcAPI;
       ifcAPI.CreateIfcGuidToExpressIdMapping(model.modelID);
 
+      viewer._guidMapping = ifcAPI.ifcGuidMap;
+
+
+    //viewer.IFC.selector.unHighlightIfcItems();
+
+      // viewer.shadowDropper.renderShadow(model.modelID);
+
+     // const scene = viewer.IFC.context.getScene();
+
+      //const properties = await viewer.IFC.properties.serializeAllProperties(model);
+      //console.log();
+   /*   console.log('--- Bulding Element Proxies ---');
+      const items = GetAllItems(viewer.IFC.loader.ifcManager.ifcAPI,model.modelID);
+      for(let key in items) {
+        const item = items[key];
+        if(item instanceof IfcBuildingElementProxy) {
+          console.log(item);
+        }
+      }*/
+
+      //ifcAPI.CreateIfcGuidToExpressIdMapping(model.modelID);
+      
+      // load as text
+
+
+      //let allItem = await GetAllItems(model)
+      //console.log("GetAllItems",allItem);
+
       // export this as a function to be called from UI instead (?)
-      const eavesCircumference = await calculateEavesCircumference(
+     /* const eavesCircumference = await calculateEavesCircumference(
         viewer,
         model,
         scene
       );
       console.log("eavesCircumference: ", eavesCircumference);
-      props.eavesCircumference(eavesCircumference);
+      props.eavesCircumference(eavesCircumference);*/
     }
   };
 
@@ -103,24 +160,105 @@ const IFCThree = (props) => {
 
 const IFCThreeNode = Noodl.defineReactNode({
   name: "IFC Three",
-  category: "Prodikt",
+  category: "IFC",
   getReactComponent() {
     return IFCThree;
   },
-  inputProps: {},
+  inputProps: {
+    name: { type: "string", group:'General', displayName:"Main", default:"Main" }
+  },
   outputProps: {
     // TODO: output dimensions
-    eavesCircumference: { type: "number" },
+    //eavesCircumference: { type: "number" },
+    selectedGlobalId: { displayName:"Selected Global Id",group:'Selection', type: "string"},
+    selectedItemId: { displayName:"Selected Item Id",group:'Selection', type: "number"},
+    loadProgress: { displayName:"Progress", group:'Loading', type: "number"},
   },
 });
 
+const IFCPickItemNode = Noodl.defineNode({
+  name: "IFC Pick Item",
+  category: "IFC",
+  inputs:{
+    viewerName:{type:'string',displayName:'Viewer',group:'General',default:'Main'},
+    itemId:{type:'number',displayName:'Item Id',group:'General'},
+    globalId:{type:'string',displayName:'Global Id',group:'General'},
+  },
+  signals:{
+    Pick:function() {
+      const viewerName = this.inputs.viewerName || 'Main';
+      const viewer = _viewers[viewerName];
+      if(!viewer) throw Error("No viewer created called: " + viewerName);
+
+      if(this.inputs.itemId !== undefined)
+        viewer.IFC.selector.pickIfcItemsByID(viewer._activeModelID,[this.inputs.itemId],false);
+      else if(this.inputs.globalId !== undefined) {
+        const itemId = viewer._guidMapping.get(0).get(this.inputs.globalId);
+        if(!itemId) throw("No matching item for the global id");
+        viewer.IFC.selector.pickIfcItemsByID(viewer._activeModelID,[itemId],false);
+      }
+      else throw Error("No item ID provided");
+    }
+  }
+})
+
+const IFCLoadModelNode = Noodl.defineNode({
+  name: "IFC Load Model",
+  category: "IFC",
+  inputs:{
+    viewerName:{type:'string',displayName:'Viewer',group:'General',default:'Main'},
+    modelFile:{type:'*',displayName:'Model File',group:'General'},
+  },
+  outputs:{
+    progress:{type:'number',displayName:'Progress',group:'General'},
+    loadCompleted:{type:'signal',displayName:'Success',group:'Events'}
+  },
+  signals:{
+    Load:function() {
+      const viewerName = this.inputs.viewerName || 'Main';
+      const viewer = _viewers[viewerName];
+      if(!viewer) throw Error("No viewer created called: " + viewerName);
+
+      if(!this.inputs.modelFile) throw Error("No file provided");
+
+      console.log("Loading IFC..");
+      viewer.IFC.loader.ifcManager.setOnProgress((event) => {
+        const percentage = Math.floor((event.loaded * 100) / event.total);
+        console.log(`Loaded ${percentage}%`);
+        this.setOutputs({
+          progress:percentage
+        })
+        if(percentage == 100) this.sendSignalOnOutput("loadCompleted");
+      });
+
+      viewer.IFC.loadIfc(this.inputs.modelFile, true).then((model) => {
+        viewer._activeModelID = model.modelID;
+
+        const ifcAPI = viewer.IFC.loader.ifcManager.ifcAPI;
+        ifcAPI.CreateIfcGuidToExpressIdMapping(model.modelID);
+  
+        viewer._guidMapping = ifcAPI.ifcGuidMap;
+      })
+    }
+  }
+})
+
 Noodl.defineModule({
   reactNodes: [IFCThreeNode],
-  nodes: [],
+  nodes: [IFCPickItemNode,IFCLoadModelNode],
   setup() {},
 });
 
 // functions
+
+/*
+async function GetAllItems(modelID, excludeGeometry = false) {
+  const allItems = {};
+  const lines = ifcapi.GetAllLines(modelID);
+  getAllItemsFromLines(modelID, lines, allItems, excludeGeometry);
+  return allItems;
+}
+*/
 
 // TODO: break out some of this logic
 async function calculateEavesCircumference(viewer, model, scene) {
